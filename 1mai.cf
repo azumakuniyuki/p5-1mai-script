@@ -1,0 +1,8 @@
+# Configuration file for 1mai.cf, Perl hash reference
+{
+	'syslog' => { 
+		'enabled' => 1, 
+		'facility' => 'user',
+	},
+}
+
