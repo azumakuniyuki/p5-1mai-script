@@ -23,7 +23,6 @@ use Time::Piece;
 use Data::Dumper;
 
 sub new {
-
     my $class = shift;
     my $argvs = { @_ };
     my $param = {};
@@ -32,12 +31,12 @@ sub new {
     return $class if ref $class eq __PACKAGE__;
     $param = {
         'started' => Time::Piece->new,
-        'pidfile' => $argvs->{'pidfile'} || q(),
+        'pidfile' => $argvs->{'pidfile'} || '',
         'verbose' => $argvs->{'verbose'} || 0,
         'command' => $argvs->{'command'} ? $argvs->{'command'} : $0,
         'runmode' => $argvs->{'runmode'} || 1,
-        'syslog' => $argvs->{'syslog'} || { 'enabled' => 0, 'facility' => 'user' },
-        'stream' => {
+        'syslog'  => $argvs->{'syslog'}  || { 'enabled' => 0, 'facility' => 'user' },
+        'stream'  => {
             'stdin'  => -t STDIN  ? 1 : 0,
             'stdout' => -t STDOUT ? 1 : 0,
             'stderr' => -t STDERR ? 1 : 0,
@@ -48,7 +47,7 @@ sub new {
     return $thing;
 }
 
-sub stdin { shift->{'stream'}->{'stdin'} }
+sub stdin  { shift->{'stream'}->{'stdin'} }
 sub stdout { shift->{'stream'}->{'stdout'} }
 sub stderr { shift->{'stream'}->{'stderr'} }
 sub r { my( $x, $y ) = @_; $x->{'runmode'} = $y if defined $y; return $x->{'runmode'}; }
@@ -71,22 +70,22 @@ sub l {
     return 0 unless length $messages;
 
     my $syslogps = { 
-        'a' => 'LOG_ALERT', 'c' => 'LOG_CRIT', 'e' => 'LOG_ERR', 'w' => 'LOG_WARNING',
+        'a' => 'LOG_ALERT',  'c' => 'LOG_CRIT', 'e' => 'LOG_ERR', 'w' => 'LOG_WARNING',
         'n' => 'LOG_NOTICE', 'i' => 'LOG_INFO', 'd' => 'LOG_DEBUG',
     };
-    my $logargvs = [ 'ndelay', 'pid', 'nofatal' ];
+    my $logargvs = ['ndelay', 'pid', 'nofatal'];
     my $identity = basename $0;
     my $username = $ENV{'LOGNAME'} || $ENV{'USER'} || 'NOBODY';
 
     $priority = $syslogps->{ $priority } if length $priority == 1;
     $priority = 'LOG_INFO' unless grep { $priority eq $_ } values %$syslogps;
 
-    $messages .= sprintf( " by uid=%d(%s)", $>, $username );
-    $messages =~ y{\n\r}{}d;
-    $messages =~ y{ }{}s;
+    $messages .= sprintf(" by uid=%d(%s)", $>, $username);
+    $messages =~ y/\n\r//d;
+    $messages =~ y/ //s;
 
-    openlog( $identity, join( ',', @$logargvs ), $facility ) || return 0;
-    syslog( $priority, $messages ) || return 0;
+    openlog($identity, join(',', @$logargvs), $facility) || return 0;
+    syslog($priority, $messages) || return 0;
     closelog() || return 0;
 
     return 1;
@@ -101,9 +100,9 @@ sub e {
     my $mesg = shift; return 0 unless length $mesg;
     my $cont = shift || 0;
 
-    $self->l( $mesg, 'e' ) if $self->{'syslog'}->{'enabled'};
-    printf( STDERR " * error0: %s\n", $mesg ) if $self->stderr;
-    printf( STDERR " * error0: ******** ABORT ********\n" ) if $self->stderr;
+    $self->l($mesg, 'e') if $self->{'syslog'}->{'enabled'};
+    printf(STDERR " * error0: %s\n", $mesg) if $self->stderr;
+    printf(STDERR " * error0: ******** ABORT ********\n") if $self->stderr;
     $cont ? return 1 : exit(1);
 }
 
@@ -120,9 +119,8 @@ sub p {
     return 0 unless $self->v;
     return 0 unless $self->v >= $rung;
 
-    chomp $mesg; printf( STDERR " * debug%d: %s\n", $rung, $mesg );
+    chomp $mesg; printf(STDERR " * debug%d: %s\n", $rung, $mesg);
     return 1;
-
 }
 
 sub mkpf {
@@ -135,11 +133,11 @@ sub mkpf {
     return 0 unless $self->{'pidfile'};
     return 0 if -e  $self->{'pidfile'};
 
-    $file = IO::File->new( $self->{'pidfile'}, 'w' ) || return 0;
-    $text = sprintf( "%d\n%s\n", $$, $self->{'command'} );
+    $file = IO::File->new($self->{'pidfile'}, 'w') || return 0;
+    $text = sprintf("%d\n%s\n", $$, $self->{'command'});
 
-    flock( $file, LOCK_EX ) ? $file->print( $text ) : return 0;
-    flock( $file, LOCK_UN ) ? $file->close : return 0;
+    flock($file, LOCK_EX) ? $file->print($text) : return 0;
+    flock($file, LOCK_UN) ? $file->close : return 0;
     return 1;
 }
 
@@ -165,39 +163,37 @@ use strict;
 use warnings;
 
 BEGIN {
-
     if( @ARGV ) {
-
+        # Check the arguments
         if( $ARGV[0] eq '--modules' ) {
 
             require IO::File;
-            my $filehandle = IO::File->new( $0, 'r' ) || die $!;
+            my $filehandle = IO::File->new($0, 'r') || die $!;
             my $modulelist = [];
             my $modulename = '';
 
             while( ! $filehandle->eof ) {
-
                 my $r = $filehandle->getline;
                 next if $r =~ /\A\s*#/;
                 next if $r =~ /\A=/;
                 next if $r =~ /\A\s*\z/;
                 next if $r =~ /\buse (?:strict|warnings|utf8)/;
 
-                $modulename = $1 if $r =~ m{\b(?:use|require)[ ]+([A-Za-z][0-9A-Za-z:]+)[ ;]};
+                $modulename = $1 if $r =~ /\b(?:use|require)[ ]+([A-Za-z][0-9A-Za-z:]+)[ ;]/;
 
                 next unless $modulename;
                 next if grep { $modulename eq $_ } @$modulelist;
-                push @$modulelist, $modulename; $modulename = q();
+                push @$modulelist, $modulename; $modulename = '';
             }
             $filehandle->close;
-            printf( "%s\n", $_ ) for @$modulelist;
+            printf("%s\n", $_) for @$modulelist;
             exit 0;
 
         } elsif( $ARGV[0] eq '--cpanm' ) {
 
             my $commandurl = 'http://xrl.us/cpanm';
-            my $searchpath = [ '/usr/local/bin/', '/usr/bin/', '/bin/', './' ];
-            my $commandset = { 'wget' => '-c', 'curl' => '-LOk' };
+            my $searchpath = ['/usr/local/bin/', '/usr/bin/', '/bin/', './'];
+            my $commandset = {'wget' => '-c', 'curl' => '-LOk'};
             my $scriptpath = qx/which cpanm/; chomp $scriptpath;
             my $getcommand = q();
 
@@ -209,8 +205,8 @@ BEGIN {
             foreach my $e ( keys %$commandset ) {
 
                 $getcommand = qx/which $e/; chomp $getcommand;
-                $getcommand = q() unless -x $getcommand;
-                $getcommand ||= shift [ grep { $_ .= $e; $_ if -x $_ } @$searchpath ];
+                $getcommand = '' unless -x $getcommand;
+                $getcommand ||= shift [grep { $_ .= $e; $_ if -x $_ } @$searchpath];
                 next unless $getcommand;
 
                 $getcommand .= ' '.$commandset->{ $e };
@@ -219,13 +215,13 @@ BEGIN {
 
             $scriptpath = './cpanm';
             if( -f $scriptpath ) {
-                chmod( '0755', $scriptpath );
-                printf( "%s\n", $scriptpath ); 
+                chmod('0755', $scriptpath);
+                printf("%s\n", $scriptpath); 
                 exit 0;
             }
             system qq($getcommand $commandurl > /dev/null 2>&1);
-            chmod( '0755', $scriptpath ) if -x $scriptpath;
-            printf "%s\n", $scriptpath;
+            chmod('0755', $scriptpath) if -x $scriptpath;
+            printf("%s\n", $scriptpath);
             exit 0;
         }
     }
@@ -238,76 +234,74 @@ use Data::Dumper;
 my $Version = '0.0.1';
 my $Setting = {};
 my $Default = {
-    'syslog' => { 'enabled' => 0, 'facility' => 'user' },
+    'syslog' => {'enabled' => 0, 'facility' => 'user'},
 };
 my $Options = {
-    'exec' => ( 1 << 0 ),
-    'test' => ( 1 << 1 ),
-    'neko' => ( 1 << 2 ),
+    'exec' => (1 << 0),
+    'test' => (1 << 1),
+    'neko' => (1 << 2),
 };
 my $Command = CLI->new( 
-    'command' => join( ' ', $0, @ARGV ),
-    'pidfile' => sprintf( "/tmp/%s.pid", basename $0 ),
+    'command' => join(' ', $0, @ARGV),
+    'pidfile' => sprintf("/tmp/%s.pid", basename $0),
 );
-$Command->r( parseoptions() );
+$Command->r(parseoptions());
 
 if( $Command->r & $Options->{'exec'} ) {
 
 }
 
 sub parseoptions {
+    my $r = 0;  # Run mode value
+    my $p = {}; # Parsed options
+    my $c = ''; # Configuration file
 
-    my $r = 0;      # Run mode value
-    my $p = {};     # Parsed options
-    my $c = q();    # Configuration file
-
-    Getopt::Long::GetOptions( $p, 'conf|C=s', 'verbose|v+',
-        'data'     => sub { print <DATA>; exit 0; },
-        'help'      => sub { help(); exit 0; },
-        'version'   => sub { printf( STDERR "%s\n", $Version ); exit 0; },
+    Getopt::Long::GetOptions($p, 'conf|C=s', 'verbose|v+',
+        'data'    => sub { print <DATA>; exit 0; },
+        'help'    => sub { help(); exit 0; },
+        'version' => sub { printf(STDERR "%s\n", $Version); exit 0; },
     );
 
     if( $p->{'conf'} ) {
         # Load configuration file specified with -C or --conf option
         $c = $p->{'conf'};
-
     } else {
         # Try to load scriptname.cf as a confguration file
         $c = __FILE__; $c =~ s/[.]pl//; $c .= '.cf';
     }
 
     eval { $Setting = do $c } if -f $c;
-    $Command->e( $@ ) if $@;
-    $Command->e( 'Empty configuration: '.$c ) unless $Setting;
-    $Command->e( 'Invalid format: '.$c ) unless ref $Setting eq q|HASH|;
+    $Command->e($@) if $@;
+    $Command->e('Empty configuration: '.$c) unless $Setting;
+    $Command->e('Invalid format: '.$c) unless ref $Setting eq 'HASH';
 
     $Setting = $Default unless keys %$Setting;
     $Command->{'syslog'} = $Setting->{'syslog'} || $Default->{'syslog'};
 
     $r |= $Options->{'exec'};
 
-    $Command->v( $p->{'verbose'} );
-    $Command->p( sprintf( "Configuration file = %s", $c ), 1 ) if -f $c;
-    $Command->p( sprintf( "Debug level = %d", $Command->v ), 1 );
-    $Command->p( sprintf( "Run mode = %d", $r ), 1 );
+    $Command->v($p->{'verbose'});
+    $Command->p(sprintf("Configuration file = %s", $c), 1) if -f $c;
+    $Command->p(sprintf("Debug level = %d", $Command->v), 1);
+    $Command->p(sprintf("Run mode = %d", $r), 1);
 
     if( $Command->{'syslog'}->{'enabled'} ) {
-        $Command->p( sprintf( "Syslog enabled = %d", $Command->{'syslog'}->{'enabled'} ), 2 );
-        $Command->p( sprintf( "Syslog Facility = %s", $Command->{'syslog'}->{'facility'} ), 2 );
+        $Command->p(sprintf("Syslog enabled = %d", $Command->{'syslog'}->{'enabled'}), 2);
+        $Command->p(sprintf("Syslog Facility = %s", $Command->{'syslog'}->{'facility'}), 2);
     }
     return $r;
 }
 
 sub help {
-    printf( STDERR "%s OPTIONS \n", $0 );
-    printf( STDERR "  -C, --conf <file>   : Specify a configuration file\n" );
-    printf( STDERR "\n" );
-    printf( STDERR '  --help              : Help screen'."\n" );
-    printf( STDERR '  --version           : Print the version number'."\n" );
-    printf( STDERR '  -v, --verbose       : Verbose mode'."\n" );
-    printf( STDERR '  --cpanm             : Find or download cpanm command'."\n" );
-    printf( STDERR '  --modules           : Print required perl module list'."\n" );
-    printf( STDERR "\n" );
+    printf(STDERR "%s OPTIONS \n", $0);
+    printf(STDERR "  -C, --conf <file>   : Specify a configuration file\n");
+    printf(STDERR "\n");
+    printf(STDERR '  --help              : Help screen'."\n");
+    printf(STDERR '  --version           : Print the version number'."\n");
+    printf(STDERR '  -v, --verbose       : Verbose mode'."\n");
+    printf(STDERR '  --cpanm             : Find or download cpanm command'."\n");
+    printf(STDERR '  --modules           : Print required perl module list'."\n");
+    printf(STDERR "\n");
 }
 
 __DATA__
